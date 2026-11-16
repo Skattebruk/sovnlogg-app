@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe5d6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Søvnlogg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Søvnlogg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+<style>
+/* Lysebrun/beige bakgrunn, hvite kort, varm brun aksent. Layout: én kolonne. Dagbok øverst (daglig bruk), så ukesammenligning, døgnoversikt, trender, legerapport, tabell, import. */
+:root{
+  --bg:#efe5d6; --surface:#ffffff; --ink:#3a2c20; --muted:#7a6553; --line:#e6d8c4; --accent:#9a6b45; --on-accent:#ffffff;
+  --st-wake:#dd8a4e; --st-light:#dcc6a6; --st-deep:#5e3f27; --st-rem:#8c5c9c; --st-asleep:#b79b78;
+  --ev-cat:#b5303f; --ev-anf:#c99300; --ev-med:#2f7d73; --ev-par:#4b3a2c;
+  --warn:#8f5a12; --warn-bg:#f8ecd8; --ok:#3c6e3f; --ok-bg:#e7f0e1; --bad:#a3283d; --bad-bg:#f9e3e3;
+  --font-display:"Newsreader", Georgia, serif;
+  --font-body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1d1712; --surface:#2a221b; --ink:#f3ebe0; --muted:#bba895; --line:#3d3229; --accent:#d4a77c; --on-accent:#1d1712;
+    --st-wake:#ec9a62; --st-light:#8f765b; --st-deep:#c9a47c; --st-rem:#b98bcb; --st-asleep:#a58b6c;
+    --ev-cat:#ef7182; --ev-anf:#efc04f; --ev-med:#5fbfb2; --ev-par:#e3d6c6;
+    --warn:#f0b866; --warn-bg:#3a2a16; --ok:#93c98f; --ok-bg:#1f2d1d; --bad:#f28b9d; --bad-bg:#3a1c20;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1d1712; --surface:#2a221b; --ink:#f3ebe0; --muted:#bba895; --line:#3d3229; --accent:#d4a77c; --on-accent:#1d1712;
+  --st-wake:#ec9a62; --st-light:#8f765b; --st-deep:#c9a47c; --st-rem:#b98bcb; --st-asleep:#a58b6c;
+  --ev-cat:#ef7182; --ev-anf:#efc04f; --ev-med:#5fbfb2; --ev-par:#e3d6c6;
+  --warn:#f0b866; --warn-bg:#3a2a16; --ok:#93c98f; --ok-bg:#1f2d1d; --bad:#f28b9d; --bad-bg:#3a1c20;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--font-display);font-weight:600;text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(26px,5vw,36px)}
+h2{font-size:21px}
+p{margin:0;max-width:65ch}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-direction:column;gap:8px}
+.notice{border-left:3px solid var(--warn);background:var(--warn-bg);padding:10px 12px;border-radius:6px;font-size:14px}
+.storebar{display:flex;gap:8px;align-items:baseline;font-size:13px;color:var(--muted)}
+.dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.on{background:var(--ok)} .dot.off{background:var(--warn)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,.filebtn,select,input{font:inherit;font-size:14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px}
+button,.filebtn,select{cursor:pointer}
+input[type="range"]{padding:0}
+button:hover,.filebtn:hover,select:hover{border-color:var(--accent)}
+button.primary,.filebtn{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:500}
+button.danger{color:var(--bad);border-color:var(--bad)}
+button:focus-visible,.filebtn:focus-within,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filebtn{position:relative}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0;padding:0;border:0}
+.status{font-size:13px;color:var(--muted)}
+.status.err{color:var(--warn)}
+.quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.quick button{display:flex;align-items:center;gap:8px;justify-content:flex-start;padding:12px;font-weight:500;text-align:left}
+.quick i{width:12px;height:12px;flex:none;display:inline-block}
+.form{display:flex;flex-direction:column;gap:10px;border:1px solid var(--accent);border-radius:10px;padding:14px}
+.form .row{display:flex;flex-wrap:wrap;gap:10px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);flex:1 1 180px}
+.form label input,.form label select{color:var(--ink)}
+.evlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.evlist li{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.evlist li span.t{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.evlist li span.d{flex:1;min-width:0}
+.evlist li button{padding:4px 10px;font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;border-top:4px solid var(--line)}
+.card.better{border-top-color:var(--ok)} .card.worse{border-top-color:var(--bad)} .card.changed{border-top-color:var(--accent)}
+.card .label{font-size:13px;color:var(--muted);font-weight:500}
+.card .val{font-size:24px;font-weight:600}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;width:fit-content}
+.chip.better{background:var(--ok-bg);color:var(--ok)}
+.chip.worse{background:var(--bad-bg);color:var(--bad)}
+.chip.changed{background:var(--bg);color:var(--accent)}
+.chip.na{background:var(--bg);color:var(--muted)}
+.chip.flag{background:var(--warn-bg);color:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.chartwrap{width:100%;overflow-x:auto}
+.trends{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.trend h3{font-size:14px;margin:0 0 4px;font-weight:600}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums;min-width:700px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:600}
+details{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+summary{cursor:pointer;font-weight:600}
+details > div{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;font-size:12.5px;overflow-x:auto;margin:0}
+.report{white-space:pre-wrap;font-family:var(--font-body);font-size:14px;line-height:1.55;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;margin:0;max-width:72ch}
+ol,ul{margin:0;padding-left:20px}
+a{color:var(--accent)}
+code{font-size:13px}
+svg text{fill:var(--muted);font-family:var(--font-body)}
+.confirm{border:1px solid var(--bad);background:var(--bad-bg);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.tonight{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.stat b{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat em{font-style:normal;font-size:12.5px;color:var(--muted)}
+.stat em.hi{color:var(--bad)} .stat em.lo{color:var(--ok)}
+#night-sec{border-top:4px solid var(--accent)}
+/* App-visning: én fane om gangen og fast fanelinje nederst */
+.viewswitch{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.tabbar{display:none}
+body.app main{padding-bottom:calc(88px + env(safe-area-inset-bottom));gap:14px;padding-top:14px}
+body.app header>p.muted{display:none}
+body.app header h1{font-size:24px}
+body.app main>section[data-tab]:not(.on){display:none}
+body.app .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(8px + env(safe-area-inset-bottom));justify-content:space-around;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;color:var(--muted);font-size:11px;font-weight:500;padding:6px 0;border-radius:12px;min-width:0}
+.tabbar button:hover{border:0}
+.tabbar button[aria-current="page"]{color:var(--accent);background:var(--bg)}
+.tabbar svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Søvnanalyse ved narkolepsi type 1</h1>
+    <p class="muted">Følg søvn, lur og symptomer over tid, se om ukene blir bedre eller verre, og lag en oversikt til legen.</p>
+    <div class="storebar"><i class="dot" id="store-dot"></i><span id="store-status">Kobler til lagring …</span><button type="button" class="viewswitch" id="viewswitch">Vis som app</button></div>
+    <p id="demo-note" class="notice" hidden>Du ser oppdiktede eksempeldata. Last inn søvndata under «Data fra klokken» eller registrer noe i dagboken, så vises bare dine egne data.</p>
+  </header>
+
+  <section aria-labelledby="h-night" id="night-sec">
+    <h2 id="h-night">Siste natt</h2>
+    <p class="small muted" id="night-sub"></p>
+    <div class="chartwrap" id="hypno"></div>
+    <div class="tonight" id="tonight"></div>
+    <p class="small muted" id="night-note"></p>
+  </section>
+
+  <section aria-labelledby="h-diary">
+    <h2 id="h-diary">Dagbok</h2>
+    <div class="quick" id="quick"></div>
+    <form id="evform" class="form" hidden>
+      <strong id="ev-title"></strong>
+      <div class="row">
+        <label for="ev-time">Tidspunkt<input id="ev-time" type="datetime-local" required></label>
+        <label for="ev-dur" id="w-dur">Varighet (minutter)<input id="ev-dur" type="number" min="1" max="600" inputmode="numeric" value="20"></label>
+        <label for="ev-sev" id="w-sev">Styrke
+          <select id="ev-sev"><option value="1">Lett (f.eks. hake eller ansikt)</option><option value="2" selected>Moderat</option><option value="3">Kraftig (falt eller måtte sette seg)</option></select>
+        </label>
+        <label for="ev-med" id="w-med">Medisin og dose<input id="ev-med" type="text" list="medlist" placeholder="f.eks. kveldsmedisin 4,5 g"></label>
+        <label for="ev-tro" id="w-tro">Trøtthet: <output id="ev-tro-out">5</output> av 10<input id="ev-tro" type="range" min="1" max="10" value="5"></label>
+      </div>
+      <label for="ev-note">Notat (valgfritt)<input id="ev-note" type="text" placeholder="f.eks. lo av en vits, etter middag"></label>
+      <datalist id="medlist"></datalist>
+      <div class="controls"><button type="submit" class="primary">Lagre</button><button type="button" id="ev-cancel">Avbryt</button></div>
+    </form>
+    <p id="ev-msg" class="status" role="status"></p>
+    <ul class="evlist" id="evlist"></ul>
+  </section>
+
+  <section aria-labelledby="h-cmp">
+    <h2 id="h-cmp">Siste uke mot ukene før</h2>
+    <p class="small muted" id="cmp-sub"></p>
+    <div class="cards" id="cmp"></div>
+  </section>
+
+  <section aria-labelledby="h-tl">
+    <h2 id="h-tl">Døgnoversikt</h2>
+    <div class="controls">
+      <label for="range" class="small muted">Vis</label>
+      <select id="range">
+        <option value="14">siste 14 døgn</option>
+        <option value="28">siste 28 døgn</option>
+        <option value="56">siste 8 uker</option>
+        <option value="0">alt</option>
+      </select>
+    </div>
+    <p class="small muted">Hver rad går fra kl. 18 til kl. 18 dagen etter, så natten og dagen etter havner på samme linje. Trekanten under en søvnperiode viser tidlig REM, innen 15 minutter etter innsovning.</p>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--st-wake)"></i>Våken</span>
+      <span><i class="sw" style="background:var(--st-light)"></i>Lett</span>
+      <span><i class="sw" style="background:var(--st-deep)"></i>Dyp</span>
+      <span><i class="sw" style="background:var(--st-rem)"></i>REM</span>
+      <span><i class="sw" style="background:var(--st-asleep)"></i>Søvn uten stadier</span>
+      <span><i class="sw" style="border:1.5px dashed var(--st-asleep)"></i>Lur fra dagboken</span>
+    </div>
+    <div class="legend" id="evlegend"></div>
+    <div class="chartwrap" id="timeline"></div>
+  </section>
+
+  <section aria-labelledby="h-tr">
+    <h2 id="h-tr">Utvikling natt for natt</h2>
+    <p class="small muted">Stiplet linje er en veiledende grense.</p>
+    <div class="trends" id="trends"></div>
+  </section>
+
+  <section aria-labelledby="h-rep">
+    <h2 id="h-rep">Rapport til legen</h2>
+    <div class="controls">
+      <label for="rep-days" class="small muted">Periode</label>
+      <select id="rep-days"><option value="14">siste 2 uker</option><option value="28" selected>siste 4 uker</option><option value="56">siste 8 uker</option><option value="91">siste 3 måneder</option></select>
+      <button id="rep-copy" type="button" class="primary">Kopier rapporten</button>
+      <span id="rep-msg" class="small muted"></span>
+    </div>
+    <pre class="report" id="report"></pre>
+  </section>
+
+  <section aria-labelledby="h-tab">
+    <h2 id="h-tab">Alle netter</h2>
+    <div class="tablewrap"><table id="table"></table></div>
+  </section>
+
+  <section aria-labelledby="h-data">
+    <h2 id="h-data">Data fra klokken</h2>
+    <div class="controls">
+      <label class="filebtn" for="file">Last inn filer
+        <input id="file" type="file" accept=".fit,.zip,.xml,.json,.csv,.txt" multiple>
+      </label>
+    </div>
+    <p id="status" class="status" role="status"></p>
+    <div id="srcpick" class="form" hidden>
+      <strong>Flere kilder har registrert søvn. Hvilken vil du bruke?</strong>
+      <label for="src">Kilde<select id="src"></select></label>
+      <div class="controls"><button id="src-ok" type="button" class="primary">Importer fra denne kilden</button><button id="src-cancel" type="button">Avbryt</button></div>
+    </div>
+    <details open>
+      <summary>Garmin med Søvnlogg-appen (anbefalt)</summary>
+      <div>
+        <ol>
+          <li>Koble klokka til PC-en med ladekabelen.</li>
+          <li>Åpne klokka i Filutforsker og gå til <code>GARMIN\Activity</code>. Hver natt med Søvnlogg ligger der som en <code>.fit</code>-fil (nyeste nederst).</li>
+          <li>Trykk «Last inn filer» her og velg filen. Du kan velge flere netter samtidig.</li>
+        </ol>
+        <p class="small muted">Filen leses i nettleseren. Siden regner ut puls, pulsvariasjon og bevegelse for hvert halve minutt og anslår søvnstadiene selv, uten Garmins søvnanalyse. Vanlige treningsøkter i samme mappe hoppes over.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Garmin, Fitbit eller Apple Watch via Apple Health</summary>
+      <div>
+        <p class="small muted">Gir klokkeprodusentens egen søvnanalyse. For Garmin: slå på søvn under Apple Health i Garmin Connect-appen. For Fitbit: slå på synkronisering til Apple Health i Google Health-appen.</p>
+        <ol>
+          <li>Åpne Helse-appen på iPhone, trykk på profilbildet øverst til høyre og velg «Eksporter alle helsedata». Lagre filen i Filer.</li>
+          <li>Trykk «Last inn filer» her og velg <code>eksport.zip</code>. Filen pakkes ut og leses i nettleseren. Bare søvndata hentes ut.</li>
+        </ol>
+        <p class="small muted">Nye netter legges til, og netter som allerede finnes, erstattes. Du kan derfor laste inn en ny eksport når som helst, for eksempel én gang i uka.</p>
+        <p class="small muted">Sjekk etter første import at nettene har søvnstadier (lett, dyp og REM). Hvis alt bare vises som «søvn uten stadier», sender ikke synkroniseringen stadiene videre, og REM-latens kan ikke beregnes.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Andre formater</summary>
+      <div>
+        <p><strong>Fitbit-eksport fra Google Takeout:</strong> filene <code>sleep-ÅÅÅÅ-MM-DD.json</code>.</p>
+        <p><strong>CSV</strong> (f.eks. fra Health Auto Export med søvn per segment, ikke samlet per natt). Filen må ha kolonner for start, slutt og stadium:</p>
+<pre id="tpl">start,slutt,stadium
+2026-11-01 23:05,2026-11-01 23:08,wake
+2026-11-01 23:08,2026-11-01 23:16,light
+2026-11-01 23:16,2026-11-01 23:31,rem
+2026-11-01 23:31,2026-11-01 23:52,deep</pre>
+      </div>
+    </details>
+    <div class="controls"><button id="backup" type="button">Last ned sikkerhetskopi</button><button type="button" id="restore">Gjenopprett fra kopi</button><input id="restore-file" type="file" accept=".json,application/json" hidden></div>
+    <div class="controls"><button id="clear" type="button" class="danger">Slett alle lagrede data</button></div>
+    <div id="clear-confirm" class="confirm" hidden>
+      <span>Dette sletter alle netter og dagboknotater som er lagret her. Det kan ikke angres.</span>
+      <div class="controls"><button id="clear-yes" type="button" class="danger">Slett alt</button><button id="clear-no" type="button">Avbryt</button></div>
+    </div>
+    <p class="small muted">Dataene lagres bare på denne telefonen, i nettleserens lagring. Ingenting sendes til noen server. Last ned en sikkerhetskopi av og til, særlig før du bytter telefon eller tømmer nettleseren.</p>
+  </section>
+
+  <section aria-labelledby="h-about">
+    <h2 id="h-about">Om tallene</h2>
+    <ul>
+      <li><strong>Innsovning:</strong> kan vises som 0 minutter når klokken ikke registrerer våken tid før søvnen starter. Tallet er derfor usikkert.</li>
+      <li><strong>Tidlig REM:</strong> REM-søvn innen 15 minutter etter innsovning. Vanlig ved narkolepsi; normalt kommer første REM etter 70–120 minutter.</li>
+      <li><strong>Våken etter innsovning:</strong> samlet våkentid midt i natten. Høy ved oppstykket søvn.</li>
+      <li><strong>Oppvåkninger per time:</strong> hvor ofte søvnen brytes.</li>
+      <li><strong>Variasjon i leggetid:</strong> standardavvik. Jevn døgnrytme anbefales ofte ved narkolepsi.</li>
+      <li><strong>Lur</strong> er ikke merket som bedre eller verre, fordi planlagte lur ofte er en del av behandlingen.</li>
+    </ul>
+    <p class="small muted">Klokker anslår søvnstadier ut fra puls og bevegelse og er mindre presise enn søvnregistrering hos lege, særlig for REM. Verktøyet er for oppfølging, ikke diagnose eller behandlingsvalg. Markørene bygger på SPHYNCS-studien (Gnarra m.fl., <em>Sleep</em> 2024). <a href="https://research-collection.ethz.ch/handle/20.500.11850/670463">Les sammendraget</a>.</p>
+  </section>
+</main>
+<nav class="tabbar" id="tabbar" aria-label="Faner"></nav>
+
+<script>
+(function(){
+"use strict";
+const EP=30000, W=0, L=1, D=2, R=3, A=4, N=-1;
+const STAGE_VAR={0:"--st-wake",1:"--st-light",2:"--st-deep",3:"--st-rem",4:"--st-asleep"};
+const LETTER={"-1":"x",0:"w",1:"l",2:"d",3:"r",4:"a"}, FROM_LETTER={x:N,w:W,l:L,d:D,r:R,a:A};
+const LIM={remLat:15, waso:40, awi:4};
+const EV={
+  kat:{label:"Katapleksi", color:"--ev-cat", shape:"diamond"},
+  anf:{label:"Søvnanfall", color:"--ev-anf", shape:"circle"},
+  lur:{label:"Lur", color:"--st-asleep", shape:"bar"},
+  med:{label:"Medisin", color:"--ev-med", shape:"tick"},
+  par:{label:"Søvnparalyse / hallusinasjon", color:"--ev-par", shape:"square"},
+  tro:{label:"Trøtthet", color:"--muted", shape:"none"}
+};
+const SEV={1:"lett",2:"moderat",3:"kraftig"};
+const $=id=>document.getElementById(id);
+
+/* ---------------- state ---------------- */
+const data={sessions:[], diary:[]};
+const STORE={mode:"loading", db:null, uid:null, docs:new Map()};
+let demoCache=null;
+
+/* ---------------- helpers ---------------- */
+const median=a=>{const b=a.filter(x=>x!=null&&!isNaN(x)).sort((x,y)=>x-y); if(!b.length) return null; const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2;};
+const mean=a=>{const b=a.filter(x=>x!=null&&!isNaN(x)); return b.length? b.reduce((s,x)=>s+x,0)/b.length : null;};
+const sd=a=>{const b=a.filter(x=>x!=null&&!isNaN(x)); if(b.length<2) return null; const mu=b.reduce((s,x)=>s+x,0)/b.length; return Math.sqrt(b.reduce((s,x)=>s+(x-mu)**2,0)/(b.length-1));};
+const nf=(x,d=0)=>x==null||isNaN(x)?"–":x.toLocaleString("nb-NO",{maximumFractionDigits:d,minimumFractionDigits:d});
+const hm=min=>{if(min==null||isNaN(min)) return "–"; const h=Math.floor(min/60), m=Math.round(min%60); return h+" t "+String(m).padStart(2,"0")+" m";};
+const dayFmt=t=>new Date(t).toLocaleDateString("nb-NO",{weekday:"short",day:"numeric",month:"numeric"});
+const dateFmt=t=>new Date(t).toLocaleDateString("nb-NO",{day:"numeric",month:"numeric",year:"numeric"});
+const clock=t=>new Date(t).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const addDays=(t,n)=>{const d=new Date(t); d.setDate(d.getDate()+n); return d.getTime();};
+const monthKey=t=>{const d=new Date(t); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+function rowOf(t){const d=new Date(t); const r=new Date(d.getFullYear(),d.getMonth(),d.getDate(),18,0,0); if(d.getHours()<18) r.setDate(r.getDate()-1); return r.getTime();}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toLocalInput(t){const d=new Date(t); const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+
+/* ---------------- parsing ---------------- */
+function parseDate(s){
+  if(s==null) return NaN;
+  s=String(s).trim().replace(/^"|"$/g,"");
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)).getTime();
+  m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})[ T,]+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?/);
+  if(m) return new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0)).getTime();
+  return Date.parse(s);
+}
+function normStage(v){
+  let s=String(v).toLowerCase().replace(/^"|"$/g,"").trim().replace(/^hkcategoryvaluesleepanalysis/,"");
+  if(/inbed|in bed|i seng/.test(s)) return null;
+  if(/wake|awake|våken|vaken|restless|uro/.test(s)) return W;
+  if(/rem/.test(s)) return R;
+  if(/deep|dyp/.test(s)) return D;
+  if(/light|core|lett/.test(s)) return L;
+  if(/asleep|sleep|sover|søvn|unspecified/.test(s)) return A;
+  return null;
+}
+function buildSession(segs, main){
+  let start=Infinity,end=-Infinity;
+  for(const g of segs){ if(g.s<start) start=g.s; if(g.e>end) end=g.e; }
+  const n=Math.max(1,Math.round((end-start)/EP));
+  const ep=new Int8Array(n).fill(N);
+  for(const g of segs){ const i0=Math.max(0,Math.round((g.s-start)/EP)), i1=Math.min(n,Math.round((g.e-start)/EP)); for(let i=i0;i<i1;i++) ep[i]=g.st; }
+  if(main==null){ let sl=0; for(const x of ep) if(x>0) sl++; main=sl/2>=180; }
+  return {start, end:start+n*EP, ep, main:!!main};
+}
+function groupSegments(segs){
+  segs.sort((a,b)=>a.s-b.s);
+  const out=[]; let cur=[segs[0]], curEnd=segs[0].e;
+  for(let i=1;i<segs.length;i++){ const g=segs[i];
+    if(g.s-curEnd>45*60000){ out.push(buildSession(cur)); cur=[g]; curEnd=g.e; }
+    else { cur.push(g); if(g.e>curEnd) curEnd=g.e; } }
+  out.push(buildSession(cur));
+  return out;
+}
+function parseFitbit(json){
+  const logs=Array.isArray(json)?json:(json&&Array.isArray(json.sleep)?json.sleep:[]);
+  const out=[];
+  for(const lg of logs){
+    if(!lg||!lg.levels) continue;
+    const segs=[];
+    const add=arr=>{ for(const d of (arr||[])){ const st=normStage(d.level); if(st==null) continue; const s=parseDate(d.dateTime); if(isNaN(s)) continue; segs.push({s,e:s+d.seconds*1000,st}); } };
+    add(lg.levels.data); add(lg.levels.shortData);
+    if(segs.length) out.push(buildSession(segs, typeof lg.isMainSleep==="boolean"?lg.isMainSleep:null));
+  }
+  return out;
+}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) throw new Error("CSV-filen har ingen datarader.");
+  const sep=(lines[0].split(";").length>lines[0].split(",").length)?";":",";
+  const head=lines[0].split(sep).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,""));
+  const find=re=>head.findIndex(h=>re.test(h));
+  const iS=find(/start|fra|begin/), iE=find(/end|slutt|til|stop/), iSt=find(/stage|stadium|stadie|value|level|verdi|type/), iSec=find(/second|sekund|duration|varighet/);
+  if(iS<0||iSt<0||(iE<0&&iSec<0)) throw new Error("fant ikke kolonnene start, slutt og stadium.");
+  const segs=[];
+  for(let k=1;k<lines.length;k++){
+    const c=lines[k].split(sep);
+    const st=normStage(c[iSt]); if(st==null) continue;
+    const s=parseDate(c[iS]); if(isNaN(s)) continue;
+    const e=iE>=0?parseDate(c[iE]):s+parseFloat(c[iSec])*1000;
+    if(isNaN(e)||e<=s) continue;
+    segs.push({s,e,st});
+  }
+  if(!segs.length) throw new Error("fant ingen gyldige rader.");
+  return groupSegments(segs);
+}
+/* Apple Health export.xml, lest i biter */
+function appleParser(){
+  let buf=""; const recs=[];
+  const re=/<Record type="HKCategoryTypeIdentifierSleepAnalysis"[^>]*>/g;
+  const attr=tag=>{ const a={}; tag.replace(/(\w+)="([^"]*)"/g,(_,k,v)=>{a[k]=v;}); return a; };
+  return {
+    push(text){
+      buf+=text; re.lastIndex=0; let m, last=0;
+      while((m=re.exec(buf))){ const a=attr(m[0]); const st=normStage(a.value); const s=parseDate(a.startDate), e=parseDate(a.endDate);
+        if(st!=null && !isNaN(s) && e>s) recs.push({src:decodeXml(a.sourceName||"Ukjent"), s, e, st}); last=re.lastIndex; }
+      buf=buf.slice(Math.max(last, buf.length-4000));
+    },
+    finish(){ return recs; }
+  };
+}
+function decodeXml(s){ return s.replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(+n)).replace(/&amp;/g,"&").replace(/&apos;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,"<").replace(/&gt;/g,">"); }
+async function streamFile(file, onChunk, onProgress){
+  const reader=file.stream().getReader(); let read=0;
+  for(;;){ const {value,done}=await reader.read(); if(done) break; read+=value.length; onProgress(read/file.size); onChunk(value); }
+}
+async function parseAppleXml(file, onProgress){
+  const p=appleParser(), dec=new TextDecoder();
+  await streamFile(file, ch=>p.push(dec.decode(ch,{stream:true})), onProgress);
+  p.push(dec.decode());
+  return p.finish();
+}
+async function parseAppleZip(file, onProgress){
+  if(!window.fflate) throw new Error("utpakkingen kunne ikke lastes. Sjekk nettforbindelsen og prøv igjen.");
+  const p=appleParser(); let found=false, finished=false, err=null;
+  const uz=new fflate.Unzip(f=>{
+    if(/(^|\/)(export|eksport)\.xml$/i.test(f.name) && !found){
+      found=true; const dec=new TextDecoder();
+      f.ondata=(e,chunk,final)=>{ if(e){err=e;return;} p.push(dec.decode(chunk,{stream:!final})); if(final) finished=true; };
+      f.start();
+    }
+  });
+  uz.register(fflate.UnzipInflate);
+  await streamFile(file, ch=>uz.push(ch), onProgress);
+  uz.push(new Uint8Array(0), true);
+  if(err) throw new Error("zip-filen kunne ikke pakkes ut.");
+  if(!found) throw new Error("fant ikke export.xml i zip-filen. Er det eksporten fra Helse-appen?");
+  if(!finished) throw new Error("zip-filen ser ut til å være ufullstendig.");
+  return p.finish();
+}
+function sessionsFromApple(recs, src){
+  const segs=recs.filter(r=>r.src===src).map(r=>({s:r.s,e:r.e,st:r.st}));
+  return segs.length?groupSegments(segs):[];
+}
+
+/* ---------------- Garmin: FIT-filer fra Søvnlogg-appen ---------------- */
+// Leser FIT-formatet (Garmins filformat) og plukker ut sekund-radene med appens egne felt:
+// motion, motion_max, rr (opptil 4 hjerteslagintervaller) og seq.
+function parseFit(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf);
+  if(u8.length<14 || String.fromCharCode(u8[8],u8[9],u8[10],u8[11])!==".FIT") throw new Error("filen er ikke en FIT-fil.");
+  const hs=u8[0], end=Math.min(u8.length, hs+dv.getUint32(4,true));
+  const SZ={0:1,1:1,2:1,0x83:2,0x84:2,0x85:4,0x86:4,7:1,0x88:4,0x89:8,0x0A:1,0x8B:2,0x8C:4,0x0D:1,0x8E:8,0x8F:8,0x90:8};
+  const INV={2:0xFF,0x84:0xFFFF,0x86:0xFFFFFFFF};
+  const td=new TextDecoder();
+  const read1=(p,base,little)=>{
+    switch(base){
+      case 0: case 2: case 0x0A: case 0x0D: return u8[p];
+      case 1: return dv.getInt8(p);
+      case 0x83: return dv.getInt16(p,little);
+      case 0x84: case 0x8B: return dv.getUint16(p,little);
+      case 0x85: return dv.getInt32(p,little);
+      case 0x86: case 0x8C: return dv.getUint32(p,little);
+      case 0x88: return dv.getFloat32(p,little);
+      case 0x89: return dv.getFloat64(p,little);
+      default: return null;
+    }
+  };
+  const readVal=(p,size,base,little)=>{
+    if(base===7){ let e=p; while(e<p+size&&u8[e]!==0) e++; return td.decode(u8.subarray(p,e)); }
+    const es=SZ[base]||1, n=Math.max(1,Math.floor(size/es));
+    const vals=[]; for(let i=0;i<n;i++){ const v=read1(p+i*es,base,little); vals.push(v!=null&&INV[base]===v?null:v); }
+    return n===1?vals[0]:vals;
+  };
+  const defs={}, devNames={}, recs=[]; let p=hs, lastTs=0, harFelt=false;
+  const readData=(local,ts)=>{
+    const d=defs[local]; if(!d) throw new Error("FIT-filen er skadet.");
+    const o={};
+    for(const f of d.fields){ o[f.num]=readVal(p,f.size,f.base,d.little); p+=f.size; }
+    const dev={};
+    for(const f of d.dfs){ const m=devNames[f.idx+":"+f.num]; dev[m?m.name:("f"+f.num)]=readVal(p,f.size,m?m.base:0x0D,d.little); p+=f.size; }
+    if(o[253]!=null) lastTs=o[253]; else if(ts!=null) o[253]=ts;
+    if(d.glob===206 && typeof o[3]==="string"){ devNames[o[0]+":"+o[1]]={name:o[3], base:o[2]}; if(o[3]==="seq") harFelt=true; }
+    else if(d.glob===20 && o[253]!=null) recs.push({ts:o[253], hr:o[3], mot:dev.motion, motmax:dev.motion_max, rr:dev.rr, seq:dev.seq});
+  };
+  while(p<end){
+    const h=u8[p++];
+    if(h&0x80){ const off=h&0x1F; let ts=(lastTs&~0x1F)+off; if(off<(lastTs&0x1F)) ts+=0x20; lastTs=ts; readData((h>>5)&3,ts); }
+    else if(h&0x40){
+      const local=h&0x0F, dev=!!(h&0x20); p++;
+      const little=u8[p++]===0, glob=dv.getUint16(p,little); p+=2;
+      const nf=u8[p++], fields=[]; for(let i=0;i<nf;i++){ fields.push({num:u8[p],size:u8[p+1],base:u8[p+2]}); p+=3; }
+      const dfs=[]; if(dev){ const nd=u8[p++]; for(let i=0;i<nd;i++){ dfs.push({num:u8[p],size:u8[p+1],idx:u8[p+2]}); p+=3; } }
+      defs[local]={glob,little,fields,dfs};
+    } else readData(h&0x0F,null);
+  }
+  if(!harFelt){ const e=new Error("ikke en natt fra Søvnlogg-appen (hoppet over)."); e.skip=true; throw e; }
+  return recs;
+}
+
+// Samme utregning som serveren: 30-sekunders epoker med puls, HRV og bevegelse.
+const FIT_EPOCH_UNIX=631065600; // FIT-tid teller sekunder fra 31.12.1989
+function fitEpoker(recs){
+  const seen=new Set(), sek=[];
+  for(const r of recs){ if(r.seq==null||seen.has(r.seq)) continue; seen.add(r.seq); sek.push(r); }
+  if(!sek.length){ const e=new Error("ikke en natt fra Søvnlogg-appen (hoppet over)."); e.skip=true; throw e; }
+  sek.sort((a,b)=>a.ts-b.ts);
+  const t0=Math.floor(sek[0].ts/30)*30, n=Math.floor((sek[sek.length-1].ts-t0)/30)+1;
+  const boxes=Array.from({length:n},()=>[]);
+  // Aktivt sekund: tydelig bevegelse innen sekundet, eller tydelig endring fra forrige sekund.
+  // (Bevegelsesnivået har et fast avvik som varierer med håndleddets stilling, så nivået alene sier lite.)
+  let forrige=null;
+  for(const r of sek){ r.aktiv = r.mot!=null && ((r.motmax!=null && r.motmax-r.mot>50) || (forrige!=null && Math.abs(r.mot-forrige)>15)); if(r.mot!=null) forrige=r.mot; boxes[Math.floor((r.ts-t0)/30)].push(r); }
+  const E={hr:[],rmssd:[],sdnn:[],beats:[],mot:[],motmax:[],still:[],cov:[]};
+  for(const b of boxes){
+    const mot=b.map(r=>r.mot).filter(v=>v!=null);
+    const raw=[]; for(const r of b){ const a=Array.isArray(r.rr)?r.rr:(r.rr!=null?[r.rr]:[]); for(const x of a) if(x) raw.push(x); }
+    const rr=[]; let prev=null, rej=0;
+    for(const x of raw){ if(x<300||x>2000) continue; if(prev!=null&&Math.abs(x-prev)/prev>0.2&&rej<3){ rej++; continue; } rr.push(x); prev=x; rej=0; }
+    const m=rr.length?rr.reduce((s,x)=>s+x,0)/rr.length:0;
+    let rmssd=0, sdnn=0;
+    if(rr.length>=5){ let dsq=0; for(let i=1;i<rr.length;i++){ const d=rr[i]-rr[i-1]; dsq+=d*d; } rmssd=Math.sqrt(dsq/(rr.length-1)); sdnn=Math.sqrt(rr.reduce((s,x)=>s+(x-m)**2,0)/(rr.length-1)); }
+    const r1=x=>Math.round(x*10)/10; // samme avrunding som serveren
+    E.hr.push(rr.length?r1(60000/m):0); E.rmssd.push(r1(rmssd)); E.sdnn.push(r1(sdnn)); E.beats.push(rr.length);
+    E.mot.push(mot.length?r1(mot.reduce((s,x)=>s+x,0)/mot.length):0); E.motmax.push(Math.max(0,...b.map(r=>r.motmax||0)));
+    E.still.push(mot.length-b.filter(r=>r.aktiv).length); E.cov.push(b.length);
+  }
+  return {start:(t0+FIT_EPOCH_UNIX)*1000, E};
+}
+
+// Foreløpig regelbasert søvnanslag (samme regler som serveren, ikke kontrollert mot søvnregistrering).
+function anslagStadier(E){
+  const n=E.mot.length, fin=Number.isFinite;
+  const pct=(a,q)=>{ const v=a.filter(fin).sort((x,y)=>x-y); if(!v.length) return NaN; const k=(v.length-1)*q/100, f=Math.floor(k), c=Math.ceil(k); return v[f]+(v[c]-v[f])*(k-f); };
+  const std=v=>{ const m=v.reduce((s,x)=>s+x,0)/v.length; return Math.sqrt(v.reduce((s,x)=>s+(x-m)**2,0)/v.length); };
+  const rull=(a,w,f)=>a.map((_,i)=>{ const h=w>>1, v=[]; for(let k=Math.max(0,i-h);k<=Math.min(n-1,i+h);k++) if(fin(a[k])) v.push(a[k]); return v.length?f(v):NaN; });
+  const gyldig=E.cov.map(c=>c>=15);
+  const aktiv=E.cov.map((c,i)=>gyldig[i]?Math.min(30,Math.max(0,c-E.still[i])):NaN), hr=E.hr.map((h,i)=>gyldig[i]&&h>0?h:NaN);
+  const hvile=pct(hr,20);
+  const vekt=[0.15,0.15,0.3,1.0,0.3,0.15];
+  const lab=[];
+  for(let i=0;i<n;i++){
+    let s=0,w=0; for(let j=0;j<6;j++){ const k=i-3+j; if(k>=0&&k<n&&fin(aktiv[k])){ s+=vekt[j]*aktiv[k]; w+=vekt[j]; } }
+    const g=w?s/w:NaN;
+    if(!gyldig[i]||!fin(g)){ lab.push("x"); continue; }
+    const bev=g>1.5||aktiv[i]>=4;
+    const hoy=fin(hr[i])&&fin(hvile)&&hr[i]>hvile*1.3&&aktiv[i]>=1;
+    lab.push(bev||hoy?"w":"s");
+  }
+  const runs=()=>{ const out=[]; let i=0; while(i<n){ let j=i; while(j<n&&lab[j]===lab[i]) j++; out.push([i,j,lab[i]]); i=j; } return out; };
+  for(const [i,j,v] of runs()) if(v==="s"&&j-i<3&&(i===0||lab[i-1]==="w")&&(j===n||lab[j]==="w")) for(let k=i;k<j;k++) lab[k]="w";
+  const first=runs().find(([i,j,v])=>v==="s"&&j-i>=10);
+  if(!first) return lab.map(v=>v==="x"?"x":"w");
+  for(let k=0;k<first[0];k++) if(lab[k]==="s") lab[k]="w";
+  // Én enkelt urolig epoke (30 s) midt i søvn er et snu i senga, ikke en oppvåkning.
+  for(const [i,j,v] of runs()) if(v==="w"&&j-i===1&&i>0&&j<n&&lab[i-1]==="s"&&lab[j]==="s") lab[i]="s";
+  // Stadier: puls og HRV sammenlignes med timen rundt (glidende median), fordi pulsen synker gjennom natta.
+  const sovn=lab.map(v=>v==="s");
+  const med=v=>{ const b=[...v].sort((x,y)=>x-y), m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; };
+  const meanF=v=>v.reduce((s,x)=>s+x,0)/v.length;
+  const hrS=hr.map((h,i)=>sovn[i]?h:NaN);
+  const lrm=E.rmssd.map((r,i)=>sovn[i]&&r>0?Math.log(r):NaN);
+  const hrRel=(()=>{ const b=rull(hrS,121,med); return hrS.map((h,i)=>h-b[i]); })();
+  const rmRel=(()=>{ const b=rull(lrm,121,med); return lrm.map((r,i)=>r-b[i]); })();
+  const hrVar=rull(hrS,5,std);
+  const z=a=>{ const v=a.filter(fin); if(v.length<20) return a.map(()=>0); const m=meanF(v), sd=std(v); return sd===0?a.map(()=>0):a.map(x=>(x-m)/sd); };
+  const zh=z(hrRel), zv=z(hrVar), zr=z(rmRel);
+  const remS=rull(zh.map((x,i)=>x+zv[i]-zr[i]),7,meanF), dypS=rull(zh.map((x,i)=>-x-zv[i]+zr[i]),7,meanF);
+  for(let i=0;i<n;i++){
+    if(lab[i]!=="s") continue;
+    if(!fin(hr[i])) lab[i]="a";
+    else if(remS[i]>1.0) lab[i]="r";
+    else if(dypS[i]>1.0&&E.still[i]>=28) lab[i]="d";
+    else lab[i]="l";
+  }
+  for(const [i,j,v] of runs()) if((v==="r"&&j-i<3)||(v==="d"&&j-i<4)) for(let k=i;k<j;k++) lab[k]="l";
+  return lab;
+}
+
+function fitTilOkt(recs){
+  const {start,E}=fitEpoker(recs);
+  const lab=anslagStadier(E);
+  const ep=new Int8Array(lab.length); lab.forEach((v,i)=>{ ep[i]=FROM_LETTER[v]; });
+  const sov=lab.map(v=>"ldra".includes(v));
+  const med=a=>median(a.filter((x,i)=>sov[i]&&x>0));
+  const nSov=sov.filter(Boolean).length;
+  return {start, end:start+ep.length*EP, ep, main:nSov/2>=180, src:"fit",
+    x:{hr:med(E.hr), rmssd:med(E.rmssd), cov:Math.round(E.cov.reduce((s,c)=>s+c,0)/E.cov.length/30*1000)/1000, modell:"regel-v1"}};
+}
+
+/* ---------------- storage encoding ---------------- */
+function encodeEp(ep){ let s="", i=0; while(i<ep.length){ const v=ep[i]; let j=i; while(j<ep.length&&ep[j]===v) j++; s+=LETTER[v]+(j-i); i=j; } return s; }
+function decodeEp(str){ const parts=[]; let n=0; str.replace(/([xwldra])(\d+)/g,(_,c,k)=>{parts.push([FROM_LETTER[c],+k]); n+=+k;}); const ep=new Int8Array(n); let i=0; for(const [v,k] of parts){ ep.fill(v,i,i+k); i+=k; } return ep; }
+const encSession=s=>{ const o={t:s.start, m:s.main?1:0, r:encodeEp(s.ep)}; if(s.src) o.src=s.src; if(s.x) o.x=s.x; return o; };
+const decSession=o=>{ const ep=decodeEp(o.r); return {start:o.t, end:o.t+ep.length*EP, ep, main:!!o.m, src:o.src, x:o.x}; };
+
+/* ---------------- persistence ---------------- */
+let writeChain=Promise.resolve();
+const IDB={db:null,
+  open(){ return new Promise((ok,feil)=>{ const r=indexedDB.open("sovnlogg",1); r.onupgradeneeded=()=>r.result.createObjectStore("docs"); r.onsuccess=()=>ok(r.result); r.onerror=()=>feil(r.error); }); },
+  tx(mode,fn){ return new Promise((ok,feil)=>{ const t=IDB.db.transaction("docs",mode); const st=t.objectStore("docs"); const res=fn(st); t.oncomplete=()=>ok(res&&res.result); t.onerror=()=>feil(t.error); t.onabort=()=>feil(t.error); }); }
+};
+function persistDoc(id, body){
+  if(STORE.mode!=="stored") return;
+  if(body===null) STORE.docs.delete(id); else STORE.docs.set(id, body);
+  writeChain=writeChain.then(()=>IDB.tx("readwrite",st=> body===null ? st.delete(id) : st.put(body,id))).catch(e=>{
+    const msg = e&&e.name==="QuotaExceededError" ? "Lagringsplassen på telefonen er full. Slett gamle data for å lagre mer." : "Kunne ikke lagre ("+(e&&e.name||"ukjent feil")+").";
+    setStatus(msg,true); setEvMsg(msg,true);
+  });
+  return writeChain;
+}
+function persistSessionMonths(keys){
+  for(const k of keys){
+    const list=data.sessions.filter(s=>monthKey(s.start)===k).map(encSession);
+    persistDoc("s-"+k, list.length?{sessions:list}:null);
+  }
+}
+function persistDiaryMonth(k){
+  const list=data.diary.filter(e=>monthKey(e.t)===k);
+  persistDoc("d-"+k, list.length?{entries:list}:null);
+}
+function rebuildFromDocs(){
+  const ss=[], dd=[];
+  for(const [id,body] of STORE.docs){
+    if(!body) continue;
+    if(id.startsWith("s-")&&Array.isArray(body.sessions)) for(const o of body.sessions){ try{ ss.push(decSession(o)); }catch(_){} }
+    if(id.startsWith("d-")&&Array.isArray(body.entries)) for(const e of body.entries) if(e&&e.t&&EV[e.type]) dd.push(e);
+  }
+  data.sessions=ss.sort((a,b)=>a.start-b.start);
+  data.diary=dd.sort((a,b)=>a.t-b.t);
+}
+async function initStore(){
+  try{
+    IDB.db=await IDB.open();
+    try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(_){}
+    const docs=new Map();
+    await new Promise((ok,feil)=>{ const t=IDB.db.transaction("docs","readonly"), st=t.objectStore("docs"); const rk=st.getAllKeys(), rv=st.getAll(); t.oncomplete=()=>{ rk.result.forEach((k,i)=>docs.set(k,rv.result[i])); ok(); }; t.onerror=()=>feil(t.error); });
+    STORE.docs=docs; STORE.mode="stored"; rebuildFromDocs(); refresh();
+  }catch(e){ STORE.mode="memory"; setStatus("Kunne ikke åpne lagringen på denne enheten. Data blir ikke lagret.",true); refresh(); }
+}
+
+/* ---------------- analysis ---------------- */
+function analyze(sess){
+  const ep=sess.ep, n=ep.length;
+  let on=-1; for(let i=0;i<n;i++){ if(ep[i]>0){on=i;break;} }
+  if(on<0) return null;
+  let last=on; for(let i=n-1;i>=on;i--){ if(ep[i]>0){last=i;break;} }
+  let tst=0,waso=0,rem=0,wakes=0,firstRem=-1,prevWake=false,hasStages=false;
+  for(let i=on;i<=last;i++){ const s=ep[i];
+    if(s===W){ waso++; if(!prevWake) wakes++; prevWake=true; }
+    else { prevWake=false; if(s>0){ tst++; if(s===R){ rem++; if(firstRem<0) firstRem=i; } if(s===L||s===D||s===R) hasStages=true; } } }
+  const remLat=hasStages?(firstRem<0?null:(firstRem-on)/2):undefined;
+  return {lat:on/2, remLat, firstRemIdx:firstRem, waso:waso/2, tst:tst/2, tib:n/2, wakes,
+    awi:tst>0?wakes/(tst/120):0, remPct:tst>0?rem/tst*100:0, soremp:remLat!=null&&remLat<=LIM.remLat, hasStages};
+}
+function buildRows(view){
+  const rows=new Map();
+  const get=r=>{ if(!rows.has(r)) rows.set(r,{rowStart:r,night:null,m:null,naps:[],events:[]}); return rows.get(r); };
+  for(const s of view.sessions){ const a=analyze(s); if(!a) continue;
+    if(s.main){ const row=get(rowOf(s.start)); if(!row.night||row.night.ep.length<s.ep.length){ row.night=s; row.m=a; } }
+    else if(a.tst>=10) get(rowOf(s.start)).naps.push({s,m:a}); }
+  for(const e of view.diary) get(rowOf(e.t)).events.push(e);
+  return rows;
+}
+function anchorRow(rows){ let mx=-Infinity; for(const k of rows.keys()) if(k>mx) mx=k; return isFinite(mx)?mx:rowOf(Date.now()); }
+function rowsBetween(rows, from, to){ return [...rows.values()].filter(r=>r.rowStart>=from&&r.rowStart<to).sort((a,b)=>a.rowStart-b.rowStart); }
+function stats(rs, nDays){
+  const nights=rs.filter(r=>r.m), M=nights.map(r=>r.m), staged=M.filter(m=>m.hasStages);
+  const ev=rs.flatMap(r=>r.events), cnt=t=>ev.filter(e=>e.type===t).length;
+  const watchNaps=rs.flatMap(r=>r.naps);
+  const manualNaps=ev.filter(e=>e.type==="lur"&&!watchNaps.some(n=>e.t>=n.s.start-20*60000&&e.t<=n.s.end));
+  const bed=nights.map(r=>(r.night.start-r.rowStart)/60000);
+  const nNaps=watchNaps.length+manualNaps.length;
+  const sorN=staged.filter(m=>m.soremp).length;
+  return {n:nights.length, nDays,
+    tib:median(M.map(m=>m.tib)), tst:median(M.map(m=>m.tst)), lat:median(M.map(m=>m.lat)),
+    remLat:median(staged.map(m=>m.remLat)), soremp:sorN, nStaged:staged.length, sorempShare:staged.length?sorN/staged.length:null,
+    waso:median(M.map(m=>m.waso)), awi:median(M.map(m=>m.awi)), bedMed:median(bed), bedSd:sd(bed),
+    naps:nNaps, napsPerDay:nNaps/nDays, watchNaps:watchNaps.length, manualNaps:manualNaps.length,
+    napsRem:watchNaps.filter(n=>n.m.remLat!=null).length,
+    napMin:median(watchNaps.map(n=>n.m.tst).concat(manualNaps.map(e=>e.dur||null))),
+    kat:cnt("kat"), anf:cnt("anf"), par:cnt("par"), katPerDay:cnt("kat")/nDays, anfPerDay:cnt("anf")/nDays,
+    katHeavy:ev.filter(e=>e.type==="kat"&&e.val===3).length,
+    tro:mean(ev.filter(e=>e.type==="tro").map(e=>e.val)), nTro:cnt("tro"),
+    meds:ev.filter(e=>e.type==="med")};
+}
+const bedClock=min=>{ if(min==null) return "–"; const t=Math.round((18*60+min)%1440); return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
+
+/* ---------------- demo data ---------------- */
+function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function genSleep(r, startT, totalMin, latMin, remLatMin, wakeP, wakeMaxMin, main){
+  const n=Math.round(totalMin*2), ep=new Int8Array(n).fill(L);
+  const on=Math.round(latMin*2); for(let i=0;i<on&&i<n;i++) ep[i]=W;
+  let i=on; const firstRem=on+Math.round(remLatMin*2); let deep=true;
+  while(i<firstRem&&i<n){ const len=Math.round((deep?8+r()*14:5+r()*8)*2); for(let j=0;j<len&&i<firstRem&&i<n;j++,i++) ep[i]=(remLatMin<20?L:(deep?D:L)); deep=!deep; }
+  let cycle=0;
+  while(i<n){
+    const remLen=Math.round((main?(6+cycle*5+r()*8):(8+r()*12))*2); for(let j=0;j<remLen&&i<n;j++,i++) ep[i]=R;
+    for(let j=0,k=Math.round((15+r()*20)*2);j<k&&i<n;j++,i++) ep[i]=L;
+    for(let j=0,k=Math.round(Math.max(0,28-cycle*7+r()*10)*2);j<k&&i<n;j++,i++) ep[i]=D;
+    for(let j=0,k=Math.round((10+r()*15)*2);j<k&&i<n;j++,i++) ep[i]=L;
+    cycle++;
+  }
+  for(let k=on+6;k<n-2;k++){ if(r()<wakeP){ const len=Math.round((0.5+r()*wakeMaxMin)*2); for(let j=0;j<len&&k+j<n;j++) ep[k+j]=W; k+=len; } }
+  ep[n-1]=W;
+  return {start:startT,end:startT+n*EP,ep,main};
+}
+function demo(){
+  const r=rng(20241), sessions=[], diary=[];
+  const today=new Date(); today.setHours(0,0,0,0);
+  const D0=42; let id=0;
+  for(let d=D0; d>=1; d--){
+    const base=new Date(today); base.setDate(base.getDate()-d); const b=base.getTime();
+    const late=d<=7; // siste uke litt bedre
+    const bed=b+(22.2+(r()-0.5)*(late?1.2:2.4))*36e5;
+    const sorem=r()<0.5;
+    sessions.push(genSleep(r, bed, 430+r()*100, 0.5+r()*5, sorem?2+r()*11:55+r()*45, late?1/70:1/45, late?5:7, true));
+    const nn=r()<0.8?(r()<0.35?2:1):0;
+    for(let k=0;k<nn;k++) sessions.push(genSleep(r, b+864e5+(10+k*4+r()*2.5)*36e5, 15+r()*25, 0.5+r()*3, r()<0.6?1+r()*6:40, 1/200, 2, false));
+    const day=b+864e5;
+    diary.push({id:"x"+(id++), t:day+(7.5+r()*0.5)*36e5, type:"med", note:"Morgenmedisin"});
+    diary.push({id:"x"+(id++), t:b+(21.5+r()*0.4)*36e5, type:"med", note:"Kveldsmedisin"});
+    const kats=Math.floor(r()*(late?1.4:2.6));
+    for(let k=0;k<kats;k++) diary.push({id:"x"+(id++), t:day+(9+r()*11)*36e5, type:"kat", val:1+Math.floor(r()*3)});
+    if(r()<(late?0.25:0.45)) diary.push({id:"x"+(id++), t:day+(11+r()*7)*36e5, type:"anf"});
+    if(r()<0.12) diary.push({id:"x"+(id++), t:b+(23+r()*2)*36e5, type:"par"});
+    diary.push({id:"x"+(id++), t:day+(19+r())*36e5, type:"tro", val:Math.round((late?4:5.5)+r()*3)});
+  }
+  diary.sort((a,b)=>a.t-b.t);
+  return {sessions, diary};
+}
+
+/* ---------------- view ---------------- */
+function currentView(){
+  const empty=!data.sessions.length&&!data.diary.length;
+  if(empty&&STORE.mode!=="loading"){ if(!demoCache) demoCache=demo(); return {...demoCache, demo:true}; }
+  return {...data, demo:false};
+}
+function refresh(){
+  const dot=$("store-dot"), st=$("store-status");
+  if(STORE.mode==="loading"){ dot.className="dot"; st.textContent="Kobler til lagring …"; }
+  else if(STORE.mode==="stored"){ dot.className="dot on"; st.textContent=`Lagret på denne telefonen · ${data.sessions.filter(s=>s.main).length} netter · ${data.diary.length} dagboknotater`; }
+  else { dot.className="dot off"; st.textContent="Lagring er ikke tilgjengelig her. Det du legger inn, forsvinner når siden lukkes."; }
+  const view=currentView();
+  $("demo-note").hidden=!view.demo;
+  const rows=buildRows(view);
+  renderTonight(view);
+  renderDiaryList(view);
+  renderCompare(rows);
+  renderTimeline(rows);
+  renderTrends(rows);
+  renderReport(rows, view.demo);
+  renderTable(rows);
+}
+
+/* ---------- siste natt ---------- */
+const SRC_LABEL={klokke:"Søvnlogg-appen", fit:"Søvnlogg-appen (FIT-fil)", import:"importert fil"};
+function renderTonight(view){
+  const mains=view.sessions.filter(s=>s.main).sort((a,b)=>a.start-b.start);
+  const last=mains[mains.length-1];
+  const box=$("tonight");
+  if(!last){
+    $("night-sub").textContent="Ingen natt registrert ennå. Når klokka har sendt første natt, vises den her.";
+    $("hypno").innerHTML=""; box.innerHTML=""; $("night-note").textContent=""; return;
+  }
+  const m=analyze(last);
+  const prev=mains.slice(-15,-1).map(s=>({s,m:analyze(s)})).filter(o=>o.m);
+  const base=k=>median(prev.map(o=>k(o)));
+  const src=view.demo?"eksempeldata":(SRC_LABEL[last.src]||"importert fil");
+  $("night-sub").textContent=`${dayFmt(last.start)} til ${dayFmt(last.end)} · i seng ${clock(last.start)}–${clock(last.end)} · ${src}`;
+  renderHypnogram(last, m);
+  const cmp=(v,b,fmt,higherIsBad)=>{
+    if(v==null||b==null||prev.length<3) return "";
+    const d=v-b, rel=b?Math.abs(d)/Math.abs(b):0;
+    const cls=rel<0.1?"":((d>0)===higherIsBad?"hi":"lo");
+    return `<em class="${cls}">vanlig ${fmt(b)}</em>`;
+  };
+  const x=last.x||{};
+  const st=[];
+  st.push({l:"Søvn", v:hm(m.tst), c:cmp(m.tst, base(o=>o.m.tst), hm, false)});
+  st.push({l:"Sovnet etter", v:nf(m.lat,0)+" min", c:""});
+  if(m.hasStages) st.push({l:"Første REM", v:m.remLat==null?"ingen":nf(m.remLat,0)+" min", c:m.soremp?'<em class="hi">tidlig REM</em>':cmp(m.remLat, base(o=>o.m.remLat), v=>nf(v,0)+" min", false)});
+  st.push({l:"Våken midt i natta", v:nf(m.waso,0)+" min", c:cmp(m.waso, base(o=>o.m.waso), v=>nf(v,0)+" min", true)});
+  st.push({l:"Oppvåkninger", v:nf(m.wakes,0), c:cmp(m.wakes, base(o=>o.m.wakes), v=>nf(v,0), true)});
+  if(x.hr!=null) st.push({l:"Puls under søvn", v:nf(x.hr,0), c:cmp(x.hr, median(prev.map(o=>o.s.x&&o.s.x.hr)), v=>nf(v,0), true)});
+  if(x.rmssd!=null) st.push({l:"HRV (RMSSD)", v:nf(x.rmssd,0)+" ms", c:cmp(x.rmssd, median(prev.map(o=>o.s.x&&o.s.x.rmssd)), v=>nf(v,0)+" ms", false)});
+  if(x.cov!=null) st.push({l:"Datadekning", v:nf(x.cov*100,0)+" %", c:x.cov<0.85?'<em class="hi">mye mangler</em>':""});
+  box.innerHTML=st.map(o=>`<div class="stat"><span>${o.l}</span><b>${o.v}</b>${o.c}</div>`).join("");
+  const est=view.demo||["klokke","fit"].includes(last.src);
+  $("night-note").textContent=(est?"Søvnstadiene er et foreløpig anslag fra puls og bevegelse og er ikke kontrollert mot søvnregistrering. ":"")+(prev.length>=3?"«Vanlig» er median for de forrige nettene (opptil 14).":"");
+}
+function renderHypnogram(sess, m){
+  const el=$("hypno"), Wd=Math.max(320, el.clientWidth||600), H=150, l=46, r=8, t=8, b=22;
+  const LV={0:0,3:1,1:2,4:2,2:3}, NAMES=["Våken","REM","Lett","Dyp"];
+  const n=sess.ep.length, X=i=>l+i/n*(Wd-l-r), Y=v=>t+v*(H-t-b)/3;
+  let s=`<svg width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Søvnstadier gjennom natta">`;
+  NAMES.forEach((nm,k)=>{ s+=`<line x1="${l}" x2="${Wd-r}" y1="${Y(k)}" y2="${Y(k)}" stroke="${cssv("--line")}"/><text x="${l-6}" y="${Y(k)+4}" font-size="11" text-anchor="end">${nm}</text>`; });
+  const startH=new Date(sess.start); const first=new Date(startH); first.setMinutes(0,0,0); first.setHours(first.getHours()+1);
+  for(let tt=first.getTime(); tt<sess.end; tt+=2*36e5){ const xx=X((tt-sess.start)/EP); s+=`<text x="${xx}" y="${H-6}" font-size="10" text-anchor="middle">${clock(tt)}</text>`; }
+  for(const run of segRuns(sess.ep)){
+    const v=LV[run.s]; if(v==null) continue;
+    s+=`<rect x="${X(run.i0).toFixed(1)}" y="${(Y(v)-5).toFixed(1)}" width="${Math.max(1,X(run.i1)-X(run.i0)).toFixed(1)}" height="10" rx="2" fill="${cssv(STAGE_VAR[run.s])}"/>`;
+  }
+  if(m.firstRemIdx>=0&&m.soremp){ const xx=X(m.firstRemIdx); s+=`<path d="M${xx-5},${Y(1)+14} L${xx+5},${Y(1)+14} L${xx},${Y(1)+7} Z" fill="${cssv("--ink")}"/>`; }
+  el.innerHTML=s+"</svg>";
+}
+
+/* ---------- diary UI ---------- */
+function shapeSvg(type, size=12){
+  const c=cssv(EV[type].color), h=size/2;
+  switch(EV[type].shape){
+    case "diamond": return `<path d="M${h},0 L${size},${h} L${h},${size} L0,${h} Z" fill="${c}"/>`;
+    case "circle": return `<circle cx="${h}" cy="${h}" r="${h}" fill="${c}"/>`;
+    case "tick": return `<rect x="${h-1.5}" y="0" width="3" height="${size}" fill="${c}"/>`;
+    case "square": return `<rect x="1" y="1" width="${size-2}" height="${size-2}" fill="${c}"/>`;
+    case "bar": return `<rect x="0.75" y="${h-3.5}" width="${size-1.5}" height="7" fill="none" stroke="${c}" stroke-width="1.5" stroke-dasharray="2 1.5"/>`;
+    default: return `<rect x="1" y="${h-1}" width="${size-2}" height="2" fill="${c}"/>`;
+  }
+}
+function buildQuick(){
+  $("quick").innerHTML=Object.entries(EV).map(([k,v])=>`<button type="button" data-ev="${k}"><svg width="12" height="12" aria-hidden="true">${shapeSvg(k)}</svg>${v.label}</button>`).join("");
+  $("evlegend").innerHTML=["kat","anf","med","par"].map(k=>`<span><svg width="12" height="12" aria-hidden="true">${shapeSvg(k)}</svg>${EV[k].label}</span>`).join("");
+}
+let evType=null;
+function openForm(type){
+  evType=type;
+  $("ev-title").textContent="Registrer: "+EV[type].label;
+  $("ev-time").value=toLocalInput(Date.now());
+  $("w-dur").hidden=type!=="lur"; $("w-sev").hidden=type!=="kat"; $("w-med").hidden=type!=="med"; $("w-tro").hidden=type!=="tro";
+  if(type==="med"){ let last=""; try{ last=localStorage.getItem("lastMed")||""; }catch(_){} $("ev-med").value=last; }
+  $("ev-note").value="";
+  $("evform").hidden=false; setEvMsg("");
+  $("ev-time").focus();
+}
+function setEvMsg(m,err){ const e=$("ev-msg"); e.textContent=m; e.className="status"+(err?" err":""); }
+function evText(e){
+  let s=EV[e.type].label;
+  if(e.type==="kat"&&e.val) s+=` (${SEV[e.val]})`;
+  if(e.type==="lur"&&e.dur) s+=` · ${e.dur} min`;
+  if(e.type==="tro"&&e.val) s+=` · ${e.val} av 10`;
+  if(e.type==="med"&&e.note) s+=` · ${e.note}`;
+  else if(e.note) s+=` · ${e.note}`;
+  return s;
+}
+function renderDiaryList(view){
+  const list=[...view.diary].sort((a,b)=>b.t-a.t).slice(0,8);
+  const meds=[...new Set(view.diary.filter(e=>e.type==="med"&&e.note).map(e=>e.note))].slice(-12);
+  $("medlist").innerHTML=meds.map(m=>`<option value="${esc(m)}"></option>`).join("");
+  if(!list.length){ $("evlist").innerHTML='<li class="muted">Ingen notater ennå. Trykk på en knapp over for å registrere.</li>'; return; }
+  $("evlist").innerHTML=list.map(e=>`<li><svg width="12" height="12" aria-hidden="true">${shapeSvg(e.type)}</svg><span class="t">${dayFmt(e.t)} ${clock(e.t)}</span><span class="d">${esc(evText(e))}</span>${view.demo?"":`<button type="button" data-del="${esc(e.id)}" aria-label="Slett notatet">Slett</button>`}</li>`).join("");
+}
+function saveEvent(ev){
+  ev.preventDefault();
+  const t=parseDate($("ev-time").value.replace("T"," "));
+  if(isNaN(t)){ setEvMsg("Velg et gyldig tidspunkt.",true); return; }
+  const e={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), t, type:evType};
+  if(evType==="lur"){ const d=parseInt($("ev-dur").value,10); if(!(d>0)){ setEvMsg("Skriv inn hvor mange minutter luren varte.",true); return; } e.dur=d; }
+  if(evType==="kat") e.val=+$("ev-sev").value;
+  if(evType==="tro") e.val=+$("ev-tro").value;
+  if(evType==="med"){ const m=$("ev-med").value.trim(); if(m){ e.note=m; try{ localStorage.setItem("lastMed",m); }catch(_){} } }
+  const note=$("ev-note").value.trim(); if(note) e.note=e.note?e.note+" – "+note:note;
+  data.diary.push(e); data.diary.sort((a,b)=>a.t-b.t);
+  persistDiaryMonth(monthKey(t));
+  $("evform").hidden=true;
+  setEvMsg(`${EV[evType].label} registrert ${dayFmt(t)} kl. ${clock(t)}.`);
+  refresh();
+}
+function deleteEvent(id){
+  const e=data.diary.find(x=>x.id===id); if(!e) return;
+  data.diary=data.diary.filter(x=>x.id!==id);
+  persistDiaryMonth(monthKey(e.t));
+  setEvMsg("Notatet er slettet.");
+  refresh();
+}
+
+/* ---------- compare ---------- */
+function renderCompare(rows){
+  const a=anchorRow(rows), end=addDays(a,1);
+  const curR=rowsBetween(rows, addDays(end,-7), end), prevR=rowsBetween(rows, addDays(end,-35), addDays(end,-7));
+  const cur=stats(curR,7), prev=stats(prevR,28);
+  $("cmp-sub").textContent=`Siste 7 døgn (${dateFmt(addDays(end,-7))}–${dateFmt(a)}) mot de 4 ukene før. Søvn er median per natt, symptomer er snitt per døgn.`;
+  const allEv=[...rows.values()].flatMap(r=>r.events);
+  const has=t=>allEv.some(e=>e.type===t);
+  const C=[
+    {k:"tst", label:"Søvn per natt", f:hm, dir:0, sleep:true, more:"Mer", less:"Mindre"},
+    {k:"waso", label:"Våken etter innsovning", f:v=>nf(v,0)+" min", dir:-1, sleep:true},
+    {k:"awi", label:"Oppvåkninger per time", f:v=>nf(v,1), dir:-1, sleep:true},
+    {k:"sorempShare", label:"Netter med tidlig REM", f:v=>nf(v*100,0)+" %", dir:0, sleep:true, more:"Flere", less:"Færre", abs:0.1},
+    {k:"bedSd", label:"Variasjon i leggetid", f:v=>"±"+nf(v,0)+" min", dir:-1, sleep:true},
+    {k:"napsPerDay", label:"Lur per døgn", f:v=>nf(v,1), dir:0, more:"Flere", less:"Færre", abs:0.2},
+    {k:"katPerDay", label:"Katapleksi per døgn", f:v=>nf(v,1), dir:-1, need:"kat", abs:0.2},
+    {k:"anfPerDay", label:"Søvnanfall per døgn", f:v=>nf(v,1), dir:-1, need:"anf", abs:0.1},
+    {k:"tro", label:"Trøtthet (1–10)", f:v=>nf(v,1), dir:-1, need:"tro", abs:0.5}
+  ];
+  $("cmp").innerHTML=C.map(c=>{
+    let cv=cur[c.k], pv=prev[c.k], cls="", chip;
+    const enough=!c.sleep||(cur.n>=3&&prev.n>=3);
+    if(c.need&&!has(c.need)){ cv=null; chip='<span class="chip na">Ikke registrert ennå</span>'; }
+    else if(!enough||cv==null||pv==null){ chip='<span class="chip na">For lite data</span>'; }
+    else {
+      const diff=cv-pv, rel=pv!==0?Math.abs(diff)/Math.abs(pv):(diff!==0?1:0);
+      if(rel<0.1||(c.abs&&Math.abs(diff)<c.abs)) chip='<span class="chip na">Omtrent likt</span>';
+      else if(c.dir===0){ cls="changed"; chip=`<span class="chip changed">${diff>0?"↑ "+(c.more||"Mer"):"↓ "+(c.less||"Mindre")}</span>`; }
+      else { const better=(diff<0)===(c.dir<0); cls=better?"better":"worse"; chip=`<span class="chip ${cls}">${diff>0?"↑":"↓"} ${better?"Bedre":"Verre"}</span>`; }
+    }
+    return `<div class="card ${cls}"><span class="label">${c.label}</span><span class="val num">${cv==null?"–":c.f(cv)}</span>${chip}<span class="small muted num">Før: ${pv==null||(c.need&&!has(c.need))?"–":c.f(pv)}</span></div>`;
+  }).join("");
+}
+
+/* ---------- timeline ---------- */
+function segRuns(ep){ const runs=[]; let i=0; while(i<ep.length){ const s=ep[i]; let j=i; while(j<ep.length&&ep[j]===s) j++; if(s!==N) runs.push({i0:i,i1:j,s}); i=j; } return runs; }
+function rangeRows(rows){
+  const a=anchorRow(rows); let n=+$("range").value;
+  if(n===0){ let mn=Infinity; for(const k of rows.keys()) if(k<mn) mn=k; n=isFinite(mn)?Math.round((a-mn)/864e5)+1:14; }
+  const out=[]; for(let i=n-1;i>=0;i--){ const r=addDays(a,-i); out.push(rows.get(r)||{rowStart:r,night:null,m:null,naps:[],events:[]}); }
+  return out;
+}
+function renderTimeline(rows){
+  const days=rangeRows(rows), el=$("timeline");
+  const Wd=Math.max(340, el.clientWidth||600);
+  const lab=Wd<500?62:84, pad=8, rowH=34, top=20;
+  const plotW=Wd-lab-pad, H=top+days.length*rowH+4;
+  const x=t=>lab+(t/864e5)*plotW;
+  let s=`<svg width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Søvn, lur og dagboknotater per døgn fra kl. 18 til kl. 18">`;
+  for(const h of [0,3,6,9,12,15,18,21,24]){ const xx=x(h*36e5);
+    s+=`<line x1="${xx}" y1="${top-4}" x2="${xx}" y2="${H-2}" stroke="${cssv("--line")}"/>`;
+    s+=`<text x="${xx}" y="11" font-size="11" text-anchor="${h===24?"end":"middle"}">${String((18+h)%24).padStart(2,"0")}</text>`; }
+  days.forEach((d,k)=>{
+    const y0=top+k*rowH, by=y0+12, bh=12;
+    s+=`<text x="0" y="${by+bh-2}" font-size="11">${dayFmt(d.rowStart)}</text>`;
+    const draw=(sess,m)=>{
+      for(const r of segRuns(sess.ep)){ const t0=sess.start+r.i0*EP-d.rowStart, t1=sess.start+r.i1*EP-d.rowStart;
+        const x0=Math.max(lab,x(t0)), x1=Math.min(lab+plotW,x(t1)); if(x1<=x0) continue;
+        s+=`<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0.6,x1-x0).toFixed(1)}" height="${bh}" fill="${cssv(STAGE_VAR[r.s])}"/>`; }
+      if(m.firstRemIdx>=0&&m.remLat!=null&&m.remLat<=LIM.remLat){ const tx=x(sess.start+m.firstRemIdx*EP-d.rowStart);
+        s+=`<path d="M${tx-4},${by+bh+7} L${tx+4},${by+bh+7} L${tx},${by+bh+1} Z" fill="${cssv("--ink")}"/>`; }
+    };
+    if(d.night) draw(d.night,d.m);
+    d.naps.forEach(n=>draw(n.s,n.m));
+    for(const e of d.events){
+      const xx=x(e.t-d.rowStart);
+      if(e.type==="lur"){ const w=Math.max(3,(e.dur||20)*60000/864e5*plotW); s+=`<rect x="${xx.toFixed(1)}" y="${by+0.75}" width="${w.toFixed(1)}" height="${bh-1.5}" fill="none" stroke="${cssv("--st-asleep")}" stroke-width="1.5" stroke-dasharray="3 2"/>`; continue; }
+      if(e.type==="tro") continue;
+      s+=`<g transform="translate(${(xx-4).toFixed(1)},${y0+1})">${shapeSvg(e.type,8)}</g>`;
+    }
+  });
+  el.innerHTML=s+"</svg>";
+}
+
+/* ---------- trends ---------- */
+function niceMax(v){ const p=Math.pow(10,Math.floor(Math.log10(v))); for(const m of [1,2,2.5,5,10]) if(m*p>=v) return m*p; return 10*p; }
+function renderTrends(rows){
+  const days=rangeRows(rows);
+  const defs=[
+    {t:"Søvn per natt (timer)", g:d=>d.m?d.m.tst/60:null, lim:null},
+    {t:"REM-latens (min)", g:d=>d.m&&d.m.remLat!=null?d.m.remLat:null, lim:LIM.remLat},
+    {t:"Våken etter innsovning (min)", g:d=>d.m?d.m.waso:null, lim:LIM.waso},
+    {t:"Katapleksi og søvnanfall per døgn", g:d=>d.events.filter(e=>e.type==="kat"||e.type==="anf").length, lim:null, bars:true}
+  ];
+  const el=$("trends");
+  el.innerHTML=defs.map((d,i)=>`<div class="trend"><h3>${d.t}</h3><div data-i="${i}"></div></div>`).join("");
+  defs.forEach((d,i)=>{
+    const box=el.querySelector(`[data-i="${i}"]`);
+    const vals=days.map(d.g), valid=vals.filter(v=>v!=null);
+    if(!valid.length||(d.bars&&!valid.some(v=>v>0))){ box.innerHTML='<p class="small muted">Ingen data i perioden.</p>'; return; }
+    const Wd=Math.max(260,box.clientWidth||300), H=130, l=34, r=10, t=8, b=22;
+    const ymax=niceMax(Math.max(d.lim?d.lim*1.5:0.0001, ...valid, d.bars?2:0));
+    const n=days.length, X=k=>l+(n<2?(Wd-l-r)/2:k*(Wd-l-r)/(n-1)), Y=v=>t+(1-v/ymax)*(H-t-b);
+    let s=`<svg width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="${d.t}">`;
+    for(const g of [0,ymax/2,ymax]){ s+=`<line x1="${l}" x2="${Wd-r}" y1="${Y(g)}" y2="${Y(g)}" stroke="${cssv("--line")}"/><text x="${l-6}" y="${Y(g)+4}" font-size="10" text-anchor="end">${nf(g,g%1?1:0)}</text>`; }
+    if(d.lim) s+=`<line x1="${l}" x2="${Wd-r}" y1="${Y(d.lim)}" y2="${Y(d.lim)}" stroke="${cssv("--warn")}" stroke-dasharray="4 3"/>`;
+    if(d.bars){ const bw=Math.max(2,(Wd-l-r)/n*0.6);
+      vals.forEach((v,k)=>{ if(!v) return; s+=`<rect x="${(X(k)-bw/2).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(Y(0)-Y(v)).toFixed(1)}" fill="${cssv("--ev-cat")}" rx="1"/>`; }); }
+    else {
+      let p="", on=false; vals.forEach((v,k)=>{ if(v==null){on=false;return;} p+=(on?"L":"M")+X(k).toFixed(1)+","+Y(v).toFixed(1); on=true; });
+      s+=`<path d="${p}" fill="none" stroke="${cssv("--accent")}" stroke-width="1.6"/>`;
+      let lastK=-1; vals.forEach((v,k)=>{ if(v!=null) lastK=k; });
+      vals.forEach((v,k)=>{ if(v==null) return; s+=`<circle cx="${X(k).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${k===lastK?4:2.4}" fill="${cssv("--accent")}"/>`; });
+    }
+    s+=`<text x="${l}" y="${H-6}" font-size="10">${dayFmt(days[0].rowStart)}</text><text x="${Wd-r}" y="${H-6}" font-size="10" text-anchor="end">${dayFmt(days[n-1].rowStart)}</text></svg>`;
+    box.innerHTML=s;
+  });
+}
+
+/* ---------- report ---------- */
+function renderReport(rows, isDemo){
+  const nd=+$("rep-days").value, a=anchorRow(rows), end=addDays(a,1), from=addDays(end,-nd);
+  const S=stats(rowsBetween(rows,from,end), nd);
+  const L=[];
+  L.push(`Søvnoppsummering ${dateFmt(from)}–${dateFmt(a)} (${nd} døgn)${isDemo?" – EKSEMPELDATA":""}`);
+  L.push(`Grunnlag: ${S.n} netter registrert med klokke${S.nStaged<S.n?`, ${S.nStaged} av dem med søvnstadier`:""}.`);
+  L.push("");
+  L.push("NATTESØVN (median per natt)");
+  if(S.n){
+    L.push(`- Tid i seng ${hm(S.tib)}, søvn ${hm(S.tst)}`);
+    L.push(`- Leggetid ca. kl. ${bedClock(S.bedMed)}, variasjon ±${nf(S.bedSd,0)} min`);
+    L.push(`- Innsovning ${nf(S.lat,0)} min`);
+    if(S.nStaged) L.push(`- REM-latens ${nf(S.remLat,0)} min; tidlig REM (innen 15 min) i ${S.soremp} av ${S.nStaged} netter`);
+    L.push(`- Våken etter innsovning ${nf(S.waso,0)} min; ${nf(S.awi,1)} oppvåkninger per time`);
+  } else L.push("- Ingen netter registrert i perioden.");
+  L.push("");
+  L.push("DAGTID");
+  L.push(`- Lur: ${S.naps} totalt (${nf(S.napsPerDay,1)} per døgn), median ${nf(S.napMin,0)} min. ${S.watchNaps} registrert av klokken${S.watchNaps?`, ${S.napsRem} av dem med REM`:""}; ${S.manualNaps} fra dagboken.`);
+  L.push(`- Katapleksi: ${S.kat} ${S.kat===1?"episode":"episoder"} (${nf(S.katPerDay,1)} per døgn)${S.katHeavy?`, ${S.katHeavy} kraftige`:""}`);
+  L.push(`- Søvnanfall: ${S.anf}`);
+  L.push(`- Søvnparalyse / hallusinasjoner: ${S.par}`);
+  if(S.nTro) L.push(`- Egenvurdert trøtthet: snitt ${nf(S.tro,1)} av 10 (${S.nTro} vurderinger)`);
+  const g=new Map(); for(const e of S.meds){ const k=e.note||"Medisin (uten navn)"; const o=g.get(k)||{n:0,first:e.t,last:e.t}; o.n++; o.first=Math.min(o.first,e.t); o.last=Math.max(o.last,e.t); g.set(k,o); }
+  if(g.size){ L.push(""); L.push("MEDISIN (fra dagboken)"); for(const [k,o] of g) L.push(`- ${k}: ${o.n} ${o.n===1?"gang":"ganger"}, ${dateFmt(o.first)}–${dateFmt(o.last)}`); }
+  if(nd>=14){
+    const c=stats(rowsBetween(rows,addDays(end,-7),end),7), p=stats(rowsBetween(rows,from,addDays(end,-7)),nd-7);
+    L.push(""); L.push("SISTE UKE MOT RESTEN AV PERIODEN");
+    if(c.n>=3&&p.n>=3) L.push(`- Våken etter innsovning ${nf(c.waso,0)} mot ${nf(p.waso,0)} min; tidlig REM ${c.soremp}/${c.nStaged} mot ${p.soremp}/${p.nStaged} netter`);
+    L.push(`- Katapleksi ${nf(c.katPerDay,1)} mot ${nf(p.katPerDay,1)} per døgn; lur ${nf(c.napsPerDay,1)} mot ${nf(p.napsPerDay,1)} per døgn`);
+  }
+  L.push("");
+  L.push("Merk: Søvnstadiene er anslått av en klokke (puls og bevegelse) og er mindre presise enn søvnregistrering (PSG). Symptomer er egenregistrert.");
+  $("report").textContent=L.join("\n");
+}
+
+/* ---------- table ---------- */
+function renderTable(rows){
+  const days=rangeRows(rows).filter(d=>d.m||d.naps.length||d.events.length).reverse();
+  let h=`<thead><tr><th>Natt</th><th>Leggetid</th><th>Søvn</th><th>Innsovning</th><th>REM-latens</th><th>Våken</th><th>Oppv./t</th><th>Lur</th><th>Katapleksi</th><th>Anfall</th></tr></thead><tbody>`;
+  for(const d of days){
+    const m=d.m;
+    const rem=!m||m.remLat===undefined?"–":(m.remLat==null?"ingen":nf(m.remLat,0)+(m.soremp?' <span class="chip flag">tidlig</span>':""));
+    const napsN=d.naps.length+d.events.filter(e=>e.type==="lur").length;
+    h+=`<tr><td>${dayFmt(d.rowStart)}</td><td>${d.night?clock(d.night.start):"–"}</td><td>${m?hm(m.tst):"–"}</td><td>${m?nf(m.lat,0):"–"}</td><td>${rem}</td><td>${m?nf(m.waso,0):"–"}</td><td>${m?nf(m.awi,1):"–"}</td><td>${napsN||"–"}</td><td>${d.events.filter(e=>e.type==="kat").length||"–"}</td><td>${d.events.filter(e=>e.type==="anf").length||"–"}</td></tr>`;
+  }
+  $("table").innerHTML=h+"</tbody>";
+}
+
+/* ---------- import ---------- */
+function setStatus(m,err){ const s=$("status"); s.textContent=m; s.className="status"+(err?" err":""); }
+let pendingApple=null;
+function commitImport(incoming, label){
+  incoming=incoming.filter(s=>analyze(s));
+  if(!incoming.length){ setStatus("Fant ingen søvn i filene.",true); return; }
+  const ov=(a,b)=>Math.max(0,Math.min(a.end,b.end)-Math.max(a.start,b.start));
+  const touched=new Set(incoming.map(s=>monthKey(s.start)));
+  const kept=data.sessions.filter(e=>{ const hit=incoming.some(i=>ov(e,i)>0.5*Math.min(e.end-e.start,i.end-i.start)); if(hit) touched.add(monthKey(e.start)); return !hit; });
+  data.sessions=kept.concat(incoming).sort((a,b)=>a.start-b.start);
+  persistSessionMonths(touched);
+  const nMain=incoming.filter(s=>s.main).length;
+  setStatus(`${label}: ${nMain} netter og ${incoming.length-nMain} lur lest inn${STORE.mode==="stored"?" og lagret":""}.`);
+  refresh();
+}
+async function handleFiles(files){
+  const all=[], errs=[]; let apple=[], fitN=0, skipped=0;
+  for(const f of files){
+    try{
+      const name=f.name.toLowerCase();
+      const prog=p=>setStatus(`Leser ${f.name} … ${Math.round(p*100)} %`);
+      if(name.endsWith(".fit")){
+        setStatus(`Leser ${f.name} …`);
+        try{ all.push(fitTilOkt(parseFit(await f.arrayBuffer()))); fitN++; }
+        catch(e){ if(e.skip){ skipped++; continue; } throw e; }
+        continue;
+      }
+      if(name.endsWith(".zip")) apple=apple.concat(await parseAppleZip(f,prog));
+      else if(name.endsWith(".xml")) apple=apple.concat(await parseAppleXml(f,prog));
+      else { const t=(await f.text()).trim(); all.push(...((t.startsWith("[")||t.startsWith("{"))?parseFitbit(JSON.parse(t)):parseCSV(t))); }
+    }catch(e){ errs.push(`${f.name}: ${e.message||e}`); }
+  }
+  if(errs.length) setStatus("Noe gikk galt: "+errs.join(" "),true);
+  if(all.length) commitImport(all, (fitN?"Søvnlogg":"Filene")+(skipped?` (${skipped} treningsøkter hoppet over)`:""));
+  else if(skipped && !apple.length && !errs.length) setStatus(`Ingen av filene var netter fra Søvnlogg-appen (${skipped} hoppet over).`,true);
+  if(apple.length){
+    const cnt=new Map(); for(const r of apple){ const o=cnt.get(r.src)||{n:0,staged:0,last:0}; o.n++; if(r.st===L||r.st===D||r.st===R) o.staged++; o.last=Math.max(o.last,r.e); cnt.set(r.src,o); }
+    const srcs=[...cnt.entries()].sort((a,b)=>b[1].staged-a[1].staged||b[1].n-a[1].n);
+    if(srcs.length===1){ commitImport(sessionsFromApple(apple,srcs[0][0]), "Apple Health ("+srcs[0][0]+")"); }
+    else {
+      pendingApple=apple;
+      $("src").innerHTML=srcs.map(([k,o])=>`<option value="${esc(k)}">${esc(k)} – ${o.n} registreringer${o.staged?", med stadier":""}, sist ${dateFmt(o.last)}</option>`).join("");
+      $("srcpick").hidden=false; setStatus("Velg kilde for å fullføre importen.");
+    }
+  } else if(!all.length && !errs.length) setStatus("Fant ingen søvndata i filene.",true);
+}
+
+/* ---------- events ---------- */
+buildQuick();
+$("quick").addEventListener("click",e=>{ const b=e.target.closest("button[data-ev]"); if(b) openForm(b.dataset.ev); });
+$("evform").addEventListener("submit",saveEvent);
+$("ev-cancel").addEventListener("click",()=>{ $("evform").hidden=true; });
+$("ev-tro").addEventListener("input",()=>{ $("ev-tro-out").textContent=$("ev-tro").value; });
+$("evlist").addEventListener("click",e=>{ const b=e.target.closest("button[data-del]"); if(b) deleteEvent(b.dataset.del); });
+$("range").addEventListener("change",refresh);
+$("rep-days").addEventListener("change",refresh);
+$("rep-copy").addEventListener("click",async()=>{ try{ await navigator.clipboard.writeText($("report").textContent); $("rep-msg").textContent="Kopiert. Lim inn i en e-post eller melding."; }catch(_){ $("rep-msg").textContent="Kunne ikke kopiere. Marker teksten og kopier den manuelt."; } });
+$("file").addEventListener("change",async e=>{ const f=[...e.target.files]; e.target.value=""; if(f.length) await handleFiles(f); });
+$("src-ok").addEventListener("click",()=>{ const s=$("src").value; $("srcpick").hidden=true; if(pendingApple) commitImport(sessionsFromApple(pendingApple,s),"Apple Health ("+s+")"); pendingApple=null; });
+$("src-cancel").addEventListener("click",()=>{ $("srcpick").hidden=true; pendingApple=null; setStatus("Importen er avbrutt."); });
+$("backup").addEventListener("click",()=>{
+  const docs={}; for(const [k,v] of STORE.docs) if(v) docs[k]=v;
+  const blob=new Blob([JSON.stringify({sovnlogg_backup:1,laget:new Date().toISOString(),docs})],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sovnlogg-kopi-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+});
+$("restore").addEventListener("click",()=>$("restore-file").click());
+$("restore-file").addEventListener("change",async ev=>{
+  const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
+  try{
+    const j=JSON.parse(await f.text());
+    if(!j||j.sovnlogg_backup!==1||typeof j.docs!=="object") throw new Error("Dette er ikke en sikkerhetskopi fra Søvnlogg.");
+    if(STORE.mode!=="stored") throw new Error("Lagringen er ikke tilgjengelig.");
+    for(const [k,v] of Object.entries(j.docs)) if(/^[sd]-\d{4}-\d{2}$/.test(k)&&v) persistDoc(k,v);
+    await writeChain; rebuildFromDocs(); refresh(); setStatus("Sikkerhetskopien er gjenopprettet.");
+  }catch(e){ setStatus(e.message||"Kunne ikke lese filen.",true); }
+});
+$("clear").addEventListener("click",()=>{ $("clear-confirm").hidden=false; });
+$("clear-no").addEventListener("click",()=>{ $("clear-confirm").hidden=true; });
+$("clear-yes").addEventListener("click",()=>{
+  $("clear-confirm").hidden=true;
+  const ids=[...STORE.docs.keys()];
+  data.sessions=[]; data.diary=[];
+  for(const id of ids) persistDoc(id,null);
+  setStatus("Alle lagrede data er slettet."); refresh();
+});
+let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(refresh,150); });
+if(window.matchMedia){ const mq=window.matchMedia("(prefers-color-scheme: dark)"); if(mq.addEventListener) mq.addEventListener("change",refresh); }
+new MutationObserver(refresh).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+
+/* ---------- app-visning med faner ---------- */
+const TABS=[
+  ["i-natt","I natt",["h-night"],'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>'],
+  ["dagbok","Dagbok",["h-diary"],'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3Z"/><path d="M9 9h6M9 13h6"/>'],
+  ["utvikling","Utvikling",["h-cmp","h-tl","h-tr","h-tab"],'<path d="M4 19h16"/><path d="M6 15l4-5 3 3 5-7"/>'],
+  ["rapport","Rapport",["h-rep"],'<path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>'],
+  ["mer","Mer",["h-data","h-about"],'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>']
+];
+document.querySelectorAll("main>section").forEach(sec=>{ const id=sec.getAttribute("aria-labelledby"); const t=TABS.find(t=>t[2].includes(id)); if(t) sec.dataset.tab=t[0]; });
+$("tabbar").innerHTML=TABS.map(([id,label,,icon])=>`<button type="button" data-go="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>${label}</button>`).join("");
+let curTab="i-natt", appMode=false;
+function setTab(name, fromHash){
+  if(!TABS.some(t=>t[0]===name)) name="i-natt";
+  curTab=name;
+  document.querySelectorAll("main>section[data-tab]").forEach(sec=>sec.classList.toggle("on", sec.dataset.tab===name));
+  document.querySelectorAll("#tabbar button").forEach(b=>{ if(b.dataset.go===name) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  if(appMode && !fromHash && location.hash!=="#"+name){ try{ history.replaceState(null,"","#"+name); }catch(_){ } }
+  window.scrollTo(0,0);
+  refresh();
+}
+function applyMode(mode){
+  appMode = mode==="app";
+  document.body.classList.toggle("app", appMode);
+  $("viewswitch").textContent = appMode ? "Vis som nettside" : "Vis som app";
+  if(appMode) setTab((location.hash||"").slice(1)||curTab, true); else refresh();
+}
+$("tabbar").addEventListener("click",e=>{ const b=e.target.closest("button[data-go]"); if(b) setTab(b.dataset.go); });
+$("viewswitch").addEventListener("click",()=>{ const m=appMode?"web":"app"; try{ localStorage.setItem("visning",m); }catch(_){ } applyMode(m); });
+window.addEventListener("hashchange",()=>{ if(appMode) setTab(location.hash.slice(1), true); });
+(function(){
+  let pref=null; try{ pref=localStorage.getItem("visning"); }catch(_){ }
+  const auto=(window.matchMedia&&(matchMedia("(max-width: 700px)").matches||matchMedia("(display-mode: standalone)").matches))?"app":"web";
+  applyMode(pref||auto);
+})();
+refresh();
+initStore();
+})();
+</script>
+<script>if("serviceWorker" in navigator) addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+</body>
+</html>
