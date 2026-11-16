@@ -145,7 +145,7 @@ body.app .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5;b
     <h1>Søvnanalyse ved narkolepsi type 1</h1>
     <p class="muted">Følg søvn, lur og symptomer over tid, se om ukene blir bedre eller verre, og lag en oversikt til legen.</p>
     <div class="storebar"><i class="dot" id="store-dot"></i><span id="store-status">Kobler til lagring …</span><button type="button" class="viewswitch" id="viewswitch">Vis som app</button></div>
-    <p id="demo-note" class="notice" hidden>Du ser oppdiktede eksempeldata. Last inn søvndata under «Data fra klokken» eller registrer noe i dagboken, så vises bare dine egne data.</p>
+    <p id="demo-note" class="notice" hidden>Ingen data ennå. Om morgenen: lagre opptaket på klokka, hent FIT-filen fra Garmin og åpne den under «Data fra klokken». Du kan også skrive i dagboken med en gang.</p>
   </header>
 
   <section aria-labelledby="h-night" id="night-sec">
@@ -750,7 +750,7 @@ function demo(){
 /* ---------------- view ---------------- */
 function currentView(){
   const empty=!data.sessions.length&&!data.diary.length;
-  if(empty&&STORE.mode!=="loading"){ if(!demoCache) demoCache=demo(); return {...demoCache, demo:true}; }
+  
   return {...data, demo:false};
 }
 function refresh(){
@@ -759,7 +759,7 @@ function refresh(){
   else if(STORE.mode==="stored"){ dot.className="dot on"; st.textContent=`Lagret på denne telefonen · ${data.sessions.filter(s=>s.main).length} netter · ${data.diary.length} dagboknotater`; }
   else { dot.className="dot off"; st.textContent="Lagring er ikke tilgjengelig her. Det du legger inn, forsvinner når siden lukkes."; }
   const view=currentView();
-  $("demo-note").hidden=!view.demo;
+  $("demo-note").hidden=STORE.mode==="loading"||view.sessions.length>0||view.diary.length>0;
   const rows=buildRows(view);
   renderTonight(view);
   renderDiaryList(view);
